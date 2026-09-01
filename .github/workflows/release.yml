@@ -1,0 +1,90 @@
+name: Release & Publish
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-publish:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Extract Version
+        id: get_version
+        run: |
+          VERSION=$(grep -oPm1 "(?<=<Version>)[^<]+" WAGONN.DotNet.ResX.Toolkit.csproj || echo "1.0.0")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TAG=v$VERSION" >> $GITHUB_ENV
+          echo "Detected version: $VERSION (Tag: v$VERSION)"
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build Solution
+        run: dotnet build -c Release --no-restore
+
+      - name: Pack NuGet Package
+        run: |
+          mkdir -p artifacts/nuget
+          dotnet pack WAGONN.DotNet.ResX.Toolkit.csproj -c Release --no-build -o artifacts/nuget
+
+      - name: Publish Binaries (Matrix)
+        run: |
+          mkdir -p artifacts/binaries
+          
+          runtimes=("win-x64" "linux-x64" "linux-arm64" "osx-x64" "osx-arm64")
+          
+          for rid in "${runtimes[@]}"; do
+            echo "Publishing for $rid..."
+            out_dir="artifacts/publish/$rid"
+            
+            dotnet publish WAGONN.DotNet.ResX.Toolkit.csproj \
+              -c Release \
+              -r $rid \
+              --self-contained true \
+              -p:PublishSingleFile=true \
+              -p:EnableCompressionInSingleFile=true \
+              -p:IncludeNativeLibrariesForSelfExtract=true \
+              -o "$out_dir"
+            
+            if [[ "$rid" == win* ]]; then
+              (cd "$out_dir" && zip -r "../../../artifacts/binaries/wagonn-resx-toolkit-$rid-$VERSION.zip" .)
+            else
+              (cd "$out_dir" && tar -czvf "../../../artifacts/binaries/wagonn-resx-toolkit-$rid-$VERSION.tar.gz" .)
+            fi
+          done
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: Release ${{ env.TAG }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/nuget/*.nupkg
+            artifacts/nuget/*.snupkg
+            artifacts/binaries/*.zip
+            artifacts/binaries/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <PackageId>WAGONN.DotNet.ResX.Toolkit</PackageId>
+    <Title>WAGONN DotNet Resx Toolkit</Title>
+    <Version>1.0.0</Version>
+    <Authors>WAGONN</Authors>
+    <Company>WAGONN</Company>
+    <Product>WAGONN.DotNet.ResX.Toolkit</Product>
+    <Description>CLI and interactive TUI toolkit for converting .NET RESX resource files to Excel workbooks, importing them back, and validating HTML tag integrity.</Description>
+    <Copyright>Copyright © 2026 WAGONN. All rights reserved.</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/WAGONN/dotnet-resx-toolkit</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/WAGONN/dotnet-resx-toolkit</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>resx;excel;localization;i18n;l10n;translation;toolkit;cli;tui;html-validator</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MiniExcel" Version="1.46.0" />
+    <PackageReference Include="System.Resources.Extensions" Version="10.0.11" />
+  </ItemGroup>
+
+</Project>
