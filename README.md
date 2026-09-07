@@ -15,12 +15,13 @@ Built for teams who send resource files to translation bureaus via Excel and nee
 
 | Feature | Description |
 |---|---|
-| **RESX → Excel** | Export all keys, values, and comments into a structured `.xlsx` workbook |
-| **Excel → RESX** | Import a translated workbook back into a standards-compliant `.resx` file |
+| **RESX → Excel** | Export single RESX file or entire directory tree (`Resources`, `Resources/Views`, etc.) to Excel with optional culture filter |
+| **Excel → RESX** | Import single Excel file or directory back to standards-compliant RESX files preserving folder hierarchy |
+| **Culture Filtering** | Filter resources by language/culture (e.g. `tr`, `en`, `de`, `tr-TR`) during batch folder operations |
 | **HTML Validation** | Scan any `.resx` or `.xlsx` for broken HTML tags — mismatched pairs, orphan closes, unclosed opens — with exact row numbers and keys |
 | **Flicker-free TUI** | Arrow-key navigable terminal menu; banner renders once, only changed lines repaint |
 | **CLI mode** | Pipe-friendly, scriptable; distinct exit codes for CI/CD integration |
-| **Safe output** | Destination directories are auto-created if they don't exist |
+| **Safe output** | Destination directories and nested subfolders are auto-created if they don't exist |
 | **.NET 10 · Cross-platform** | Runs natively on macOS, Linux, and Windows |
 
 ---
@@ -60,11 +61,11 @@ Use `↑` / `↓` to navigate, `Enter` to confirm, `q` to quit.
 ### 2. CLI Mode
 
 ```sh
-# Export RESX → Excel
-dotnet run -- export <input.resx> <output.xlsx>
+# Export RESX → Excel (Single file or Folder)
+dotnet run -- export <input.resx|input_dir> <output.xlsx|output_dir> [culture]
 
-# Import Excel → RESX
-dotnet run -- import <input.xlsx> <output.resx>
+# Import Excel → RESX (Single file or Folder)
+dotnet run -- import <input.xlsx|input_dir> <output.resx|output_dir> [culture]
 
 # Validate HTML tags in a RESX or Excel file
 dotnet run -- validate <file.resx|file.xlsx>
@@ -73,15 +74,37 @@ dotnet run -- validate <file.resx|file.xlsx>
 dotnet run -- --help
 ```
 
+**Options:**
+- `[culture]` or `-c <culture>` or `--culture <culture>`: Filter files by culture code (e.g. `tr`, `en`, `de`, `tr-TR`). Case-insensitive. If omitted, all files in the folder are processed.
+
 **Aliases:** `export` = `resx-to-excel` · `import` = `excel-to-resx` · `validate` = `check`
 
 ### Examples
 
+#### Single File
 ```sh
 dotnet run -- export    Resources.tr.resx    Translations_TR.xlsx
 dotnet run -- import    Translations_DE.xlsx Resources.de.resx
 dotnet run -- validate  Translations_DE.xlsx
 dotnet run -- validate  Resources.tr.resx
+```
+
+#### Folder / Directory (Preserves Subfolder Structure)
+```sh
+# Export only Turkish (TR) files from Resources/Views
+dotnet run -- export Resources/Views ExportedExcel/Views TR
+
+# Export entire Resources folder (Views, Controllers, etc.) for Turkish
+dotnet run -- export Resources ExportedExcel TR
+
+# Export entire Resources folder for English using flag
+dotnet run -- export Resources ExportedExcel --culture en
+
+# Export all languages without filter
+dotnet run -- export Resources ExportedExcel
+
+# Re-import translated Excel folder back to RESX
+dotnet run -- import ExportedExcel Resources TR
 ```
 
 ---

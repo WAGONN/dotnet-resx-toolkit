@@ -3,24 +3,109 @@ using MiniExcelLibs;
 using WAGONN.DotNet.ResX.Toolkit.Models;
 using WAGONN.DotNet.ResX.Toolkit.UI;
 
+using WAGONN.DotNet.ResX.Toolkit.Services;
+
 namespace WAGONN.DotNet.ResX.Toolkit.Commands;
 
 public static class ImportCommand
 {
-    public static int Run(string excelPath, string resxPath)
+    public static int Run(string inputPath, string outputPath, string? culture = null)
     {
-        excelPath = excelPath.Trim('"', '\'', ' ');
-        resxPath  = resxPath.Trim('"', '\'', ' ');
+        inputPath  = inputPath.Trim('"', '\'', ' ');
+        outputPath = outputPath.Trim('"', '\'', ' ');
+        if (!string.IsNullOrWhiteSpace(culture))
+            culture = culture.Trim('"', '\'', ' ');
 
+        if (Directory.Exists(inputPath))
+        {
+            return ImportDirectory(inputPath, outputPath, culture);
+        }
+
+        if (File.Exists(inputPath))
+        {
+            return ImportSingleFile(inputPath, outputPath);
+        }
+
+        ConsoleHelper.WriteError($"File or directory not found: {inputPath}");
+        return 1;
+    }
+
+    private static int ImportDirectory(string inputDir, string outputDir, string? culture)
+    {
+        inputDir  = Path.GetFullPath(inputDir);
+        outputDir = Path.GetFullPath(outputDir);
+
+        ConsoleHelper.WriteInfo("Input Dir ", inputDir);
+        ConsoleHelper.WriteInfo("Output Dir", outputDir);
+        if (!string.IsNullOrWhiteSpace(culture))
+            ConsoleHelper.WriteInfo("Culture   ", culture);
+        Console.WriteLine();
+
+        var excelFiles = Directory.EnumerateFiles(inputDir, "*.xlsx", SearchOption.AllDirectories)
+            .Where(f => !Path.GetFileName(f).StartsWith("~$") && ResourceFilter.MatchesCulture(f, culture))
+            .OrderBy(f => f)
+            .ToList();
+
+        if (excelFiles.Count == 0)
+        {
+            string filterMsg = !string.IsNullOrWhiteSpace(culture)
+                ? $" matching culture '{culture}'"
+                : string.Empty;
+            ConsoleHelper.WriteWarning($"No Excel files found in '{inputDir}'{filterMsg}.");
+            return 0;
+        }
+
+        ConsoleHelper.WriteDim($"  Found {excelFiles.Count} matching Excel file(s). Importing to RESX...");
+        Console.WriteLine();
+
+        int successFiles = 0;
+        int errorCount   = 0;
+        int totalEntries = 0;
+
+        foreach (var file in excelFiles)
+        {
+            string relativePath = Path.GetRelativePath(inputDir, file);
+            string targetRel    = Path.ChangeExtension(relativePath, ".resx");
+            string targetPath   = Path.Combine(outputDir, targetRel);
+
+            try
+            {
+                var entries = MiniExcel.Query<ResxEntry>(file).ToList();
+
+                var targetSubDir = Path.GetDirectoryName(targetPath);
+                if (!string.IsNullOrEmpty(targetSubDir))
+                    Directory.CreateDirectory(targetSubDir);
+
+                var doc = BuildResxDocument(entries);
+                doc.Save(targetPath);
+
+                int written = entries.Count(e => !string.IsNullOrWhiteSpace(e.Key));
+                ConsoleHelper.WriteDim($"  [✓] {relativePath} → {targetRel} ({written} entries)");
+                totalEntries += written;
+                successFiles++;
+            }
+            catch (Exception ex)
+            {
+                ConsoleHelper.WriteError($"  [✗] Failed to import '{relativePath}': {ex.Message}");
+                errorCount++;
+            }
+        }
+
+        if (errorCount == 0)
+        {
+            ConsoleHelper.WriteSuccess($"Successfully imported {successFiles} file(s) ({totalEntries} total entries) → {outputDir}");
+            return 0;
+        }
+
+        ConsoleHelper.WriteWarning($"Completed with issues: {successFiles} file(s) succeeded, {errorCount} failed.");
+        return 1;
+    }
+
+    private static int ImportSingleFile(string excelPath, string resxPath)
+    {
         ConsoleHelper.WriteInfo("Input  ", excelPath);
         ConsoleHelper.WriteInfo("Output ", resxPath);
         Console.WriteLine();
-
-        if (!File.Exists(excelPath))
-        {
-            ConsoleHelper.WriteError($"File not found: {excelPath}");
-            return 1;
-        }
 
         try
         {
